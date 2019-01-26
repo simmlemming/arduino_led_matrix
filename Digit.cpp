@@ -37,6 +37,10 @@ void Digit::set(byte digit) {
     return;
   }
 
+  if (_currentFrame < MAX_NUM_FRAMES) {
+    return;
+  }
+  
   _digit = digit;
   _updateFrames();
 }

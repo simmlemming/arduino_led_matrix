@@ -7,10 +7,13 @@
 #define NUM_LEDS MATRIX_WIDTH * MATRIX_HEIGHT
 #define MATRIX_PIN 2
 
+#define PIN_LR A1
+#define PIN_MR A2
+#define PIN_D 7
+
 RTC_DS3231 rtc;
 
 CRGB leds[NUM_LEDS];
-uint8_t ledBrightness = 4;
 
 Digit hourLow = Digit();
 Digit hourHigh = Digit();
@@ -21,7 +24,7 @@ Digit minuteHigh = Digit();
 Digit secondLow = Digit();
 Digit secondHigh = Digit();
 
-CRGB bgColor = CRGB(0, 0, 32);
+CRGB bgColor = CRGB(0, 0, 0);
 
 CRGB hourFontColor = CRGB::Orange;
 CRGB hourBgColor = bgColor;
@@ -36,43 +39,41 @@ CRGB secondBgColor = bgColor;
 CRGB secondDotColor = CRGB::Orange;
 
 void setup() {
-  //  bg_colors[0] -= 40;
+  pinMode(PIN_LR, INPUT);
+  pinMode(PIN_MR, INPUT);
+  pinMode(PIN_D, INPUT_PULLUP);
+
   Serial.begin(9600);
   Wire.begin();
 
-  //  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  // delay(3000);
+//    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+//   delay(3000);
 
   FastLED.addLeds<LED_TYPE, MATRIX_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip).setDither(0);
-  FastLED.setBrightness(ledBrightness);
-
-  //  for (int i = 0; i < NUM_LEDS; i++) {
-  //    leds[i] = bgColor;
-  //  }
 
   hourHigh.setCoordinates(0, 10);
   hourLow.setCoordinates(4, 10);
-  
+
   hourHigh.setFontColor(hourFontColor);
   hourLow.setFontColor(hourFontColor);
-  
+
   hourHigh.setBgColor(hourBgColor);
   hourLow.setBgColor(hourBgColor);
-  
+
   hourHigh.setDotColor(hourDotColor);
   hourLow.setDotColor(hourDotColor);
 
 
-  
+
   minuteHigh.setCoordinates(9, 10);
   minuteLow.setCoordinates(13, 10);
-  
+
   minuteHigh.setFontColor(minuteFontColor);
   minuteLow.setFontColor(minuteFontColor);
-  
+
   minuteHigh.setBgColor(minuteBgColor);
   minuteLow.setBgColor(minuteBgColor);
-  
+
   minuteHigh.setDotColor(minuteDotColor);
   minuteLow.setDotColor(minuteDotColor);
 
@@ -80,25 +81,29 @@ void setup() {
 
   secondHigh.setCoordinates(4, 3);
   secondLow.setCoordinates(8, 3);
-  
+
   secondHigh.setFontColor(secondFontColor);
   secondLow.setFontColor(secondFontColor);
-  
+
   secondHigh.setBgColor(secondBgColor);
   secondLow.setBgColor(secondBgColor);
-  
+
   secondHigh.setDotColor(secondDotColor);
   secondLow.setDotColor(secondDotColor);
 }
 
-int frameCounter = 0;
-int digit = 0;
+int diag[4];
 
 void loop() {
-  updateDigits();
-//  updateColors(secondHigh);
-//  updateColors(secondLow);
-
+  int brightness = getBrightness(diag);
+  bool isDiagnosticsMode = !digitalRead(PIN_D);
+  
+  if (isDiagnosticsMode) {
+    updateDigits(diag);
+  } else {
+    updateDigits(rtc.now());
+  }
+  
   hourHigh.draw(leds);
   hourLow.draw(leds);
 
@@ -108,23 +113,23 @@ void loop() {
   secondHigh.draw(leds);
   secondLow.draw(leds);
 
+  FastLED.setBrightness(brightness);
   FastLED.show();
   FastLED.delay(30);
 }
 
+void updateDigits(int diag[]) {
+  hourHigh.set(diag[1] / 10);
+  hourLow.set(diag[1] % 10);
 
-#define NUM_COLORS 4
-//CRGB bg_colors[] = {CRGB::Chocolate, CRGB::DarkRed, CRGB::DarkGreen, CRGB::DarkBlue, CRGB::Maroon};
-CRGB fontColors[] = {CRGB::Red, CRGB::Orange, CRGB::Green, CRGB::Yellow};
+  minuteHigh.set(diag[2] / 10);
+  minuteLow.set(diag[2] % 10);
 
-void updateColors(Digit& digit) {
-  int colorIndex = digit.get() % NUM_COLORS;
-  digit.setFontColor(fontColors[colorIndex]);
+  secondHigh.set(diag[0] / 10);
+  secondLow.set(diag[0] % 10);
 }
 
-void updateDigits() {
-  DateTime dt = rtc.now();
-
+void updateDigits(DateTime dt) {
   byte h = dt.hour();
   hourHigh.set(h / 10);
   hourLow.set(h % 10);
